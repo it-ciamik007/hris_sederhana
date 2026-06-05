@@ -9,14 +9,18 @@ import { Textarea } from "@/components/ui/textarea";
 
 export function LeaveRequestDialog({
   employees,
+  approvers,
   leaveTypes,
   canChooseEmployee,
-  currentEmployee
+  currentEmployee,
+  defaultApproverId
 }: {
   employees: SearchableSelectOption[];
+  approvers: SearchableSelectOption[];
   leaveTypes: SearchableSelectOption[];
   canChooseEmployee: boolean;
   currentEmployee?: SearchableSelectOption | null;
+  defaultApproverId?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -64,6 +68,22 @@ export function LeaveRequestDialog({
                   {currentEmployee?.description && <div className="text-sm text-muted-foreground">{currentEmployee.description}</div>}
                 </div>
               )}
+
+              <label className="block text-sm font-medium md:col-span-2">
+                Atasan / SPV Approval
+                <div className="mt-1">
+                  <SearchableSelect
+                    name="selectedApproverId"
+                    placeholder="Cari dan pilih atasan/SPV"
+                    options={approvers}
+                    defaultValue={defaultApproverId}
+                    required
+                  />
+                </div>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Approval WhatsApp pertama akan dikirim ke atasan yang dipilih.
+                </span>
+              </label>
 
               <label className="block text-sm font-medium md:col-span-2">
                 Tipe Izin

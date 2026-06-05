@@ -38,11 +38,16 @@ export default async function LeaveRequestsPage({
 
   const currentYear = new Date().getFullYear();
   const [employees, leaveTypes, requests, total, pendingCount, approvedCount, rejectedCount, myBalances] = await Promise.all([
-    db.employee.findMany({ orderBy: { fullName: "asc" }, take: 100 }),
+    db.employee.findMany({
+      where: { employmentStatus: "ACTIVE" },
+      include: { supervisor: true },
+      orderBy: { fullName: "asc" },
+      take: 200
+    }),
     db.leaveType.findMany({ orderBy: { name: "asc" } }),
     db.leaveRequest.findMany({
       where,
-      include: { employee: true, leaveType: true },
+      include: { employee: true, selectedApprover: true, leaveType: true },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize
@@ -75,6 +80,14 @@ export default async function LeaveRequestsPage({
     description: employee.employeeNumber
   }));
   const currentEmployee = session?.employeeId ? employeeOptions.find((employee) => employee.value === session.employeeId) : null;
+  const currentEmployeeRecord = session?.employeeId ? employees.find((employee) => employee.id === session.employeeId) : null;
+  const approverOptions = employees
+    .filter((employee) => employee.id !== session?.employeeId)
+    .map((employee) => ({
+      value: employee.id,
+      label: employee.fullName,
+      description: employee.employeeNumber
+    }));
   const leaveTypeOptions = leaveTypes.map((leaveType) => ({
     value: leaveType.id,
     label: leaveType.name,
@@ -97,9 +110,11 @@ export default async function LeaveRequestsPage({
           </div>
           <LeaveRequestDialog
             employees={employeeOptions}
+            approvers={approverOptions}
             leaveTypes={leaveTypeOptions}
             canChooseEmployee={canChooseEmployee}
             currentEmployee={currentEmployee}
+            defaultApproverId={currentEmployeeRecord?.supervisorId ?? ""}
           />
         </div>
 
@@ -170,11 +185,12 @@ export default async function LeaveRequestsPage({
         </form>
 
         <div className="overflow-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full min-w-[960px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Karyawan</th>
               <th className="px-4 py-3">Tipe</th>
+              <th className="px-4 py-3">Atasan</th>
               <th className="px-4 py-3">Tanggal</th>
               <th className="px-4 py-3">Durasi</th>
               <th className="px-4 py-3">Alasan</th>
@@ -190,6 +206,12 @@ export default async function LeaveRequestsPage({
                   <div className="text-xs text-muted-foreground">{request.employee.employeeNumber}</div>
                 </td>
                 <td className="px-4 py-3">{request.leaveType.name}</td>
+                <td className="px-4 py-3">
+                  <div className="font-medium">{request.selectedApprover?.fullName ?? "-"}</div>
+                  {request.selectedApprover?.employeeNumber && (
+                    <div className="text-xs text-muted-foreground">{request.selectedApprover.employeeNumber}</div>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <div>{request.startDate.toISOString().slice(0, 10)}</div>
                   <div className="text-xs text-muted-foreground">s/d {request.endDate.toISOString().slice(0, 10)}</div>
@@ -213,7 +235,7 @@ export default async function LeaveRequestsPage({
             ))}
             {!requests.length && (
               <tr>
-                <td colSpan={7} className="px-4 py-14 text-center">
+                <td colSpan={8} className="px-4 py-14 text-center">
                   <div className="text-base font-medium">Belum ada pengajuan yang cocok</div>
                   <p className="mt-1 text-sm text-muted-foreground">Ubah filter atau buat pengajuan baru.</p>
                 </td>

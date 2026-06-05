@@ -176,6 +176,7 @@ model Employee {
   users         User[]
   documents     EmployeeDocument[]
   leaveRequests LeaveRequest[]
+  leaveApprovalsAsSelectedApprover LeaveRequest[] @relation("LeaveSelectedApprover")
   leaveBalances LeaveBalance[]
   attendanceDaily AttendanceDaily[]
   evaluationAssignments EvaluationAssignment[] @relation("EvaluationTarget")
@@ -360,6 +361,7 @@ model LeaveRequest {
   id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
   employeeId        String    @map("employee_id") @db.Char(36)
   leaveTypeId       String    @map("leave_type_id") @db.Char(36)
+  selectedApproverId String?  @map("selected_approver_id") @db.Char(36)
   startDate         DateTime  @map("start_date") @db.Date
   endDate           DateTime  @map("end_date") @db.Date
   startTime         DateTime? @map("start_time") @db.DateTime(0)
@@ -375,10 +377,12 @@ model LeaveRequest {
 
   employee        Employee         @relation(fields: [employeeId], references: [id])
   leaveType       LeaveType        @relation(fields: [leaveTypeId], references: [id])
+  selectedApprover Employee?       @relation("LeaveSelectedApprover", fields: [selectedApproverId], references: [id])
   approvalRequest ApprovalRequest? @relation(fields: [approvalRequestId], references: [id])
 
   @@index([employeeId, status], map: "idx_leave_employee_status")
   @@index([approvalRequestId], map: "idx_leave_approval")
+  @@index([selectedApproverId], map: "idx_leave_selected_approver")
   @@map("leave_requests")
 }
 

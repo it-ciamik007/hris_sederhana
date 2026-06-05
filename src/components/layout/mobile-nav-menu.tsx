@@ -19,14 +19,15 @@ export function MobileNavMenu({ permissions, roles }: { permissions: string[]; r
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border/60 bg-background/70 text-foreground shadow-sm transition hover:bg-accent lg:hidden"
+        className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-accent"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
+        <span className="hidden min-[360px]:inline">Menu</span>
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[90] lg:hidden">
+        <div className="fixed inset-0 z-[90]">
           <button
             type="button"
             className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
