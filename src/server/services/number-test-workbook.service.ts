@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import type { NumberTestKeyBlock, NumberTestWorkbook } from "@/lib/number-test-key";
 
-const defaultWorkbookPath = "\\\\Ddserver\\data klien lanjutan\\HRD\\Tes\\Jawaban TES BS dan Angka.xlsx";
+const localDefaultWorkbookPath = "\\\\Ddserver\\data klien lanjutan\\HRD\\Tes\\Jawaban TES BS dan Angka.xlsx";
 type ExcelJsLoadBuffer = Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0];
 
 function colorText(color?: Partial<ExcelJS.Color>) {
@@ -109,7 +109,27 @@ export async function extractNumberTestWorkbookFromBuffer(buffer: Buffer, fileNa
   return parseWorkbook(workbook, fileName);
 }
 
-export async function extractNumberTestWorkbookFromFile(path = process.env.TEST_ANSWER_WORKBOOK_PATH || defaultWorkbookPath) {
+async function extractNumberTestWorkbookFromUrl(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Workbook URL gagal dibaca: ${response.status}`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  return extractNumberTestWorkbookFromBuffer(buffer, url.split("/").pop() ?? "workbook.xlsx");
+}
+
+function getWorkbookPath() {
+  if (process.env.TEST_ANSWER_WORKBOOK_PATH) return process.env.TEST_ANSWER_WORKBOOK_PATH;
+  if (process.env.TEST_ANSWER_WORKBOOK_URL) return process.env.TEST_ANSWER_WORKBOOK_URL;
+  if (process.env.VERCEL) {
+    throw new Error("TEST_ANSWER_WORKBOOK_PATH atau TEST_ANSWER_WORKBOOK_URL wajib diset di Vercel.");
+  }
+  return localDefaultWorkbookPath;
+}
+
+export async function extractNumberTestWorkbookFromFile(path = getWorkbookPath()) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return extractNumberTestWorkbookFromUrl(path);
+  }
+
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(path);
   return parseWorkbook(workbook, path.split(/[\\/]/).pop() ?? "workbook.xlsx");

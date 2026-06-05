@@ -76,6 +76,7 @@ Modul template test/answer key sementara tidak ditampilkan di UI karena pekerjaa
 
 - Set `APP_URL` ke URL HRIS yang bisa dibuka approver dari WhatsApp.
 - Set `TEST_ANSWER_WORKBOOK_PATH` jika workbook kunci tes berada di lokasi selain default.
+- Di Vercel, gunakan `TEST_ANSWER_WORKBOOK_URL` atau upload Excel manual karena path `\\Ddserver\...` tidak bisa diakses dari cloud.
 - Jalankan Next.js dan worker notifikasi dengan process manager.
 - Pastikan profil SPV, Manager, HRD, dan karyawan punya `whatsapp_number`.
 - Jika role/permission berubah, user perlu login ulang agar session memuat permission terbaru.
