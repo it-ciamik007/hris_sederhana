@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle, ArrowUpDown, BookOpen, Camera, CheckCircle2, FileImage, Loader2, RefreshCw, ScanText, Sigma, StopCircle, UploadCloud } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { analyzeNumberSequences, type SequenceIssue } from "@/lib/sequence-analyzer";
@@ -45,6 +45,7 @@ export function NumberSequenceScanner() {
   const [progress, setProgress] = useState(0);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [busyLabel, setBusyLabel] = useState("");
+  const [cameraReady, setCameraReady] = useState(false);
   const [keyLoading, setKeyLoading] = useState(false);
   const [workbook, setWorkbook] = useState<NumberTestWorkbook | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState("");
@@ -83,8 +84,29 @@ export function NumberSequenceScanner() {
   );
   const keyIssues = useMemo(() => keyCheck?.items.filter((item) => !item.correct).slice(0, 12) ?? [], [keyCheck]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream) return;
+
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    void video.play().catch(() => {
+      setError("Preview kamera belum bisa diputar. Coba tutup lalu buka kamera lagi, atau gunakan upload foto.");
+    });
+
+    return () => {
+      if (video.srcObject === stream) video.srcObject = null;
+    };
+  }, [stream]);
+
   async function startCamera() {
     setError("");
+    setCameraReady(false);
+    if (!window.isSecureContext) {
+      setError("Kamera ponsel hanya bisa dibuka dari HTTPS atau localhost. Jika membuka dari IP lokal HTTP, gunakan deploy HTTPS atau upload foto.");
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Browser tidak membuka akses kamera. Pakai tombol upload foto dari ponsel.");
       return;
@@ -96,10 +118,6 @@ export function NumberSequenceScanner() {
         video: { facingMode: { ideal: "environment" } }
       });
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
-      }
     } catch {
       setError("Kamera tidak bisa dibuka. Pastikan izin kamera aktif atau gunakan upload foto.");
     }
@@ -108,6 +126,7 @@ export function NumberSequenceScanner() {
   function stopCamera() {
     stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
+    setCameraReady(false);
     if (videoRef.current) videoRef.current.srcObject = null;
   }
 
@@ -232,7 +251,26 @@ export function NumberSequenceScanner() {
         <div className="space-y-4 p-5">
           <div className="overflow-hidden rounded-lg border bg-slate-950">
             {stream ? (
-              <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full object-cover" />
+              <div className="relative aspect-[4/3] bg-slate-950">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  onCanPlay={() => setCameraReady(true)}
+                  onLoadedMetadata={(event) => void event.currentTarget.play()}
+                  className={cn("h-full w-full object-cover transition-opacity duration-300", cameraReady ? "opacity-100" : "opacity-0")}
+                />
+                {!cameraReady && (
+                  <div className="absolute inset-0 grid place-items-center p-6 text-center text-white">
+                    <div>
+                      <Loader2 className="mx-auto h-8 w-8 animate-spin text-cyan-200" />
+                      <div className="mt-3 text-sm font-semibold">Menghubungkan kamera...</div>
+                      <div className="mt-1 text-xs text-white/60">Izinkan akses kamera jika browser meminta konfirmasi.</div>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : imagePreview ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imagePreview} alt="Preview scan" className="aspect-[4/3] w-full object-contain bg-slate-950" />

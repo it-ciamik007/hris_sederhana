@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       
       <main className="min-w-0 flex-1 flex flex-col">
         {/* Glassmorphic Top Header */}
-        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-border/40 bg-background/60 px-6 backdrop-blur-xl transition-all">
+        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-border/40 bg-background/60 py-0 pl-20 pr-4 backdrop-blur-xl transition-all lg:px-6">
           <div className="flex flex-col justify-center">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selamat bekerja</div>
             <div className="text-base font-bold text-foreground">{session.name}</div>
