@@ -39,6 +39,8 @@ export type AnswerCheckResult = {
   extra: number;
   scorePercent: number;
   detectedAnswers: number[];
+  sourceAnswers: number[];
+  offset: number;
   items: AnswerCheckItem[];
 };
 
@@ -56,8 +58,22 @@ export function extractNumbersFromAnswerText(text: string, options?: { ignoreSin
   return numbers.filter((value) => Math.abs(value) >= 10);
 }
 
-function compareAnswers(detectedAnswers: number[], expectedValues: number[], direction: Exclude<AnswerDirection, "auto">): AnswerCheckResult {
+function compareAnswers(sourceAnswers: number[], expectedValues: number[], direction: Exclude<AnswerDirection, "auto">): AnswerCheckResult {
   const expected = expectedValues;
+  let detectedAnswers = sourceAnswers.slice(0, expected.length);
+  let offset = 0;
+
+  if (sourceAnswers.length > expected.length) {
+    let best = { score: -1, offset: 0, detectedAnswers };
+    for (let index = 0; index <= sourceAnswers.length - expected.length; index += 1) {
+      const candidate = sourceAnswers.slice(index, index + expected.length);
+      const score = candidate.filter((value, valueIndex) => value === expected[valueIndex]).length;
+      if (score > best.score) best = { score, offset: index, detectedAnswers: candidate };
+    }
+    detectedAnswers = best.detectedAnswers;
+    offset = best.offset;
+  }
+
   const checked = Math.min(detectedAnswers.length, expected.length);
   const items = expected.map((expectedValue, index) => {
     const detected = detectedAnswers[index];
@@ -70,7 +86,7 @@ function compareAnswers(detectedAnswers: number[], expectedValues: number[], dir
   });
   const correct = items.filter((item) => item.detected !== undefined && item.correct).length;
   const missing = Math.max(0, expected.length - detectedAnswers.length);
-  const extra = Math.max(0, detectedAnswers.length - expected.length);
+  const extra = Math.max(0, sourceAnswers.length - detectedAnswers.length);
 
   return {
     direction,
@@ -80,6 +96,8 @@ function compareAnswers(detectedAnswers: number[], expectedValues: number[], dir
     extra,
     scorePercent: expected.length ? Math.round((correct / expected.length) * 100) : 0,
     detectedAnswers,
+    sourceAnswers,
+    offset,
     items
   };
 }

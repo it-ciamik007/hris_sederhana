@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertTriangle, ArrowUpDown, BookOpen, Camera, CheckCircle2, FileImage, Loader2, RefreshCw, ScanText, Sigma, StopCircle, UploadCloud } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowUpDown, BookOpen, Camera, CheckCircle2, FileImage, Loader2, RefreshCw, ScanText, Sigma, StopCircle, UploadCloud, Video } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { analyzeNumberSequences, type SequenceIssue } from "@/lib/sequence-analyzer";
@@ -46,6 +46,7 @@ export function NumberSequenceScanner() {
   const [confidence, setConfidence] = useState<number | null>(null);
   const [busyLabel, setBusyLabel] = useState("");
   const [cameraReady, setCameraReady] = useState(false);
+  const [liveScan, setLiveScan] = useState(false);
   const [keyLoading, setKeyLoading] = useState(false);
   const [workbook, setWorkbook] = useState<NumberTestWorkbook | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState("");
@@ -127,10 +128,11 @@ export function NumberSequenceScanner() {
     stream?.getTracks().forEach((track) => track.stop());
     setStream(null);
     setCameraReady(false);
+    setLiveScan(false);
     if (videoRef.current) videoRef.current.srcObject = null;
   }
 
-  async function recognizeImage(image: string) {
+  const recognizeImage = useCallback(async (image: string) => {
     setError("");
     setBusyLabel("Membaca OCR");
     setProgress(0);
@@ -153,9 +155,9 @@ export function NumberSequenceScanner() {
     } finally {
       setBusyLabel("");
     }
-  }
+  }, []);
 
-  async function captureFrame() {
+  const captureFrame = useCallback(async (options?: { keepLivePreview?: boolean }) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || !video.videoWidth || !video.videoHeight) {
@@ -172,9 +174,17 @@ export function NumberSequenceScanner() {
     context.filter = "contrast(1.15) saturate(0)";
     context.drawImage(video, 0, 0, width, height);
     const image = canvas.toDataURL("image/png");
-    setImagePreview(image);
+    if (!options?.keepLivePreview) setImagePreview(image);
     await recognizeImage(image);
-  }
+  }, [recognizeImage]);
+
+  useEffect(() => {
+    if (!stream || !cameraReady || !liveScan || busyLabel) return;
+    const timer = window.setTimeout(() => {
+      void captureFrame({ keepLivePreview: true });
+    }, text ? 4500 : 1200);
+    return () => window.clearTimeout(timer);
+  }, [busyLabel, cameraReady, captureFrame, liveScan, stream, text]);
 
   async function handleFile(file: File | undefined) {
     if (!file) return;
@@ -225,14 +235,15 @@ export function NumberSequenceScanner() {
     setError("");
     setProgress(0);
     setConfidence(null);
+    setLiveScan(false);
     stopCamera();
     if (fileRef.current) fileRef.current.value = "";
   }
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,1.05fr)]">
-      <section className="rounded-lg border bg-card shadow-sm">
-        <div className="border-b p-5">
+    <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] xl:gap-5">
+      <section className="min-w-0 rounded-lg border bg-card shadow-sm">
+        <div className="border-b p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-cyan-700 dark:text-cyan-300">
@@ -248,7 +259,7 @@ export function NumberSequenceScanner() {
           </div>
         </div>
 
-        <div className="space-y-4 p-5">
+        <div className="space-y-4 p-4 sm:p-5">
           <div className="overflow-hidden rounded-lg border bg-slate-950">
             {stream ? (
               <div className="relative aspect-[4/3] bg-slate-950">
@@ -318,6 +329,16 @@ export function NumberSequenceScanner() {
             <Button type="button" onClick={() => fileRef.current?.click()} variant="secondary" className="rounded-lg">
               <FileImage className="h-4 w-4" />
               Upload Foto
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setLiveScan((value) => !value)}
+              disabled={!stream || !cameraReady || Boolean(busyLabel)}
+              variant={liveScan ? "secondary" : "primary"}
+              className="rounded-lg"
+            >
+              <Video className="h-4 w-4" />
+              {liveScan ? "Stop Live Scan" : "Live Scan"}
             </Button>
             <Button type="button" onClick={() => void captureFrame()} disabled={!stream || Boolean(busyLabel)} className="rounded-lg">
               {busyLabel ? <Loader2 className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
@@ -447,8 +468,8 @@ export function NumberSequenceScanner() {
         <canvas ref={canvasRef} className="hidden" />
       </section>
 
-      <section className="rounded-lg border bg-card shadow-sm">
-        <div className="border-b p-5">
+      <section className="min-w-0 rounded-lg border bg-card shadow-sm">
+        <div className="border-b p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
@@ -464,7 +485,7 @@ export function NumberSequenceScanner() {
           </div>
         </div>
 
-        <div className="space-y-4 p-5">
+        <div className="space-y-4 p-4 sm:p-5">
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg border bg-slate-50 p-3 dark:bg-slate-900">
               <div className="text-xs font-semibold uppercase text-muted-foreground">Angka</div>
@@ -491,6 +512,7 @@ export function NumberSequenceScanner() {
                   <div className="mt-1 text-sm text-muted-foreground">
                     {selectedBlock.label}, arah terpakai: {keyCheck.direction === "top-down" ? "atas ke bawah" : "bawah ke atas"}.
                     Auto hanya pindah ke bawah-ke-atas jika hasil atas-ke-bawah nol benar.
+                    {keyCheck.offset > 0 ? ` ${keyCheck.offset} angka awal diabaikan karena terdeteksi sebagai nomor/header.` : ""}
                   </div>
                 </div>
                 <div className="rounded-lg bg-background px-4 py-3 text-right">
@@ -534,7 +556,7 @@ export function NumberSequenceScanner() {
           )}
 
           {numberCount ? (
-            <div className="overflow-auto rounded-lg border">
+            <div className="max-w-full overflow-auto rounded-lg border">
               <table className="min-w-full border-collapse bg-background text-sm">
                 <thead className="bg-slate-100 text-xs uppercase text-muted-foreground dark:bg-slate-900">
                   <tr>

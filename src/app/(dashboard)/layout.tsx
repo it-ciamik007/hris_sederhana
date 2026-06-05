@@ -1,5 +1,6 @@
 import { Bell, Search } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
+import { MobileNavMenu } from "@/components/layout/mobile-nav-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -15,10 +16,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
       
       <main className="min-w-0 flex-1 flex flex-col">
         {/* Glassmorphic Top Header */}
-        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between border-b border-border/40 bg-background/60 py-0 pl-20 pr-4 backdrop-blur-xl transition-all lg:px-6">
-          <div className="flex flex-col justify-center">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selamat bekerja</div>
-            <div className="text-base font-bold text-foreground">{session.name}</div>
+        <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-3 border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl transition-all lg:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <MobileNavMenu permissions={session.permissions} roles={session.roles} />
+            <div className="flex min-w-0 flex-col justify-center">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selamat bekerja</div>
+              <div className="truncate text-base font-bold text-foreground">{session.name}</div>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
