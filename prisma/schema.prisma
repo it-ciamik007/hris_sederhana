@@ -1,0 +1,820 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  name       String    @db.VarChar(200)
+  legalName  String?   @map("legal_name") @db.VarChar(200)
+  taxNumber  String?   @map("tax_number") @db.VarChar(100)
+  address    String?   @db.Text
+  phone      String?   @db.VarChar(50)
+  email      String?   @db.VarChar(150)
+  logoFileId String?   @map("logo_file_id") @db.Char(36)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt  DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  branches              Branch[]
+  departments           Department[]
+  positions             Position[]
+  employees             Employee[]
+  files                 File[]
+  roles                 Role[]
+  permissions           Permission[]
+  leaveTypes            LeaveType[]
+  leavePolicies         LeavePolicy[]
+  holidays              Holiday[]
+  shifts                Shift[]
+  evaluationForms       EvaluationForm[]
+  evaluationCycles      EvaluationCycle[]
+  testTemplates         TestTemplate[]
+  payrollPeriods        PayrollPeriod[]
+  payrollComponents     PayrollComponent[]
+  reimbursementTypes    ReimbursementType[]
+  jobOpenings           JobOpening[]
+  trainings             Training[]
+  assets                Asset[]
+  announcements         Announcement[]
+  notificationTemplates NotificationTemplate[]
+  activityLogs          ActivityLog[]
+  appSettings           AppSetting[]
+
+  @@map("companies")
+}
+
+model AppSetting {
+  id           String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId    String?   @map("company_id") @db.Char(36)
+  settingKey   String    @map("setting_key") @db.VarChar(150)
+  settingValue Json      @map("setting_value")
+  isSecret     Boolean   @default(false) @map("is_secret")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt    DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, settingKey], map: "uq_app_setting")
+  @@index([settingKey], map: "idx_app_settings_key")
+  @@map("app_settings")
+}
+
+model File {
+  id              String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId       String?  @map("company_id") @db.Char(36)
+  originalName    String   @map("original_name") @db.VarChar(255)
+  storedName      String   @map("stored_name") @db.VarChar(255)
+  mimeType        String?  @map("mime_type") @db.VarChar(100)
+  sizeBytes       BigInt?  @map("size_bytes")
+  storageProvider String   @default("LOCAL") @map("storage_provider") @db.VarChar(50)
+  storagePath     String   @map("storage_path") @db.Text
+  uploadedBy      String?  @map("uploaded_by") @db.Char(36)
+  uploadedAt      DateTime @default(now()) @map("uploaded_at") @db.DateTime(0)
+
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([companyId], map: "idx_files_company")
+  @@map("files")
+}
+
+model Branch {
+  id        String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId String    @map("company_id") @db.Char(36)
+  name      String    @db.VarChar(150)
+  address   String?   @db.Text
+  latitude  Decimal?  @db.Decimal(10, 7)
+  longitude Decimal?  @db.Decimal(10, 7)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+
+  @@index([companyId], map: "idx_branches_company")
+  @@map("branches")
+}
+
+model Department {
+  id                 String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId          String    @map("company_id") @db.Char(36)
+  name               String    @db.VarChar(150)
+  parentDepartmentId String?   @map("parent_department_id") @db.Char(36)
+  isActive           Boolean   @default(true) @map("is_active")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt          DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company   Company      @relation(fields: [companyId], references: [id])
+  parent    Department?  @relation("DepartmentParent", fields: [parentDepartmentId], references: [id])
+  children  Department[] @relation("DepartmentParent")
+  employees Employee[]
+
+  @@index([companyId], map: "idx_departments_company")
+  @@index([parentDepartmentId], map: "idx_departments_parent")
+  @@map("departments")
+}
+
+model Position {
+  id             String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId      String    @map("company_id") @db.Char(36)
+  name           String    @db.VarChar(150)
+  levelOrder     Int       @default(1) @map("level_order")
+  isSpvLevel     Boolean   @default(false) @map("is_spv_level")
+  isManagerLevel Boolean   @default(false) @map("is_manager_level")
+  isPartnerLevel Boolean   @default(false) @map("is_partner_level")
+  isHrLevel      Boolean   @default(false) @map("is_hr_level")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt      DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  employees Employee[]
+
+  @@index([companyId], map: "idx_positions_company")
+  @@map("positions")
+}
+
+model Employee {
+  id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId         String    @map("company_id") @db.Char(36)
+  branchId          String?   @map("branch_id") @db.Char(36)
+  departmentId      String?   @map("department_id") @db.Char(36)
+  positionId        String?   @map("position_id") @db.Char(36)
+  supervisorId      String?   @map("supervisor_id") @db.Char(36)
+  employeeNumber    String    @map("employee_number") @db.VarChar(100)
+  fullName          String    @map("full_name") @db.VarChar(200)
+  nik               String?   @db.VarChar(16)
+  gender            String?   @db.VarChar(20)
+  birthPlace        String?   @map("birth_place") @db.VarChar(100)
+  birthDate         DateTime? @map("birth_date") @db.Date
+  phone             String?   @db.VarChar(30)
+  whatsappNumber    String?   @map("whatsapp_number") @db.VarChar(30)
+  email             String?   @db.VarChar(150)
+  address           String?   @db.Text
+  joinDate          DateTime  @map("join_date") @db.Date
+  resignedDate      DateTime? @map("resigned_date") @db.Date
+  employmentStatus  String    @default("ACTIVE") @map("employment_status") @db.VarChar(50)
+  bankName          String?   @map("bank_name") @db.VarChar(100)
+  bankAccountNumber String?   @map("bank_account_number") @db.VarChar(100)
+  npwp              String?   @db.VarChar(100)
+  bpjsKesehatan     String?   @map("bpjs_kesehatan") @db.VarChar(100)
+  bpjsKetenagakerjaan String? @map("bpjs_ketenagakerjaan") @db.VarChar(100)
+  fingerprintUserId String?   @map("fingerprint_user_id") @db.VarChar(100)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt         DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company       Company     @relation(fields: [companyId], references: [id])
+  branch        Branch?     @relation(fields: [branchId], references: [id])
+  department    Department? @relation(fields: [departmentId], references: [id])
+  position      Position?   @relation(fields: [positionId], references: [id])
+  supervisor    Employee?   @relation("EmployeeSupervisor", fields: [supervisorId], references: [id])
+  subordinates  Employee[]  @relation("EmployeeSupervisor")
+  users         User[]
+  documents     EmployeeDocument[]
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+  attendanceDaily AttendanceDaily[]
+  evaluationAssignments EvaluationAssignment[] @relation("EvaluationTarget")
+  evaluatorAssignments EvaluationAssignment[] @relation("EvaluationEvaluator")
+  testParticipants TestParticipant[]
+
+  @@unique([companyId, employeeNumber], map: "uq_employee_number")
+  @@unique([companyId, nik], map: "uq_employee_nik")
+  @@index([companyId, fullName], map: "idx_employees_company_name")
+  @@index([fingerprintUserId], map: "idx_employees_fingerprint")
+  @@map("employees")
+}
+
+model EmployeeDocument {
+  id           String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId   String   @map("employee_id") @db.Char(36)
+  fileId       String   @map("file_id") @db.Char(36)
+  documentType String   @map("document_type") @db.VarChar(100)
+  expiresAt    DateTime? @map("expires_at") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId], map: "idx_employee_documents_employee")
+  @@map("employee_documents")
+}
+
+model User {
+  id           String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId   String?   @map("employee_id") @db.Char(36)
+  email        String    @unique @db.VarChar(150)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  name         String    @db.VarChar(150)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.DateTime(0)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt    DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee Employee? @relation(fields: [employeeId], references: [id])
+  roles    UserRole[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String?  @map("company_id") @db.Char(36)
+  code        String   @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company     Company?         @relation(fields: [companyId], references: [id])
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@unique([companyId, code], map: "uq_roles_company_code")
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId String?  @map("company_id") @db.Char(36)
+  code      String   @db.VarChar(100)
+  module    String   @db.VarChar(100)
+  name      String   @db.VarChar(150)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company?         @relation(fields: [companyId], references: [id])
+  roles   RolePermission[]
+
+  @@unique([companyId, code], map: "uq_permissions_company_code")
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String @map("user_id") @db.Char(36)
+  roleId String @map("role_id") @db.Char(36)
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Char(36)
+  permissionId String @map("permission_id") @db.Char(36)
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model LeaveType {
+  id                 String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId          String   @map("company_id") @db.Char(36)
+  code               String   @db.VarChar(50)
+  name               String   @db.VarChar(150)
+  requiresAttachment Boolean  @default(false) @map("requires_attachment")
+  deductsBalance     Boolean  @default(false) @map("deducts_balance")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+
+  @@unique([companyId, code], map: "uq_leave_type_code")
+  @@map("leave_types")
+}
+
+model LeavePolicy {
+  id                   String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId            String   @map("company_id") @db.Char(36)
+  name                 String   @db.VarChar(150)
+  annualQuota          Decimal  @default(12.00) @map("annual_quota") @db.Decimal(8, 2)
+  allowNegativeBalance Boolean  @default(false) @map("allow_negative_balance")
+  excludeHolidays      Boolean  @default(true) @map("exclude_holidays")
+  excludeWeekends      Boolean  @default(true) @map("exclude_weekends")
+  isDefault            Boolean  @default(true) @map("is_default")
+  createdAt            DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("leave_policies")
+}
+
+model LeaveBalance {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId  String   @map("employee_id") @db.Char(36)
+  leaveTypeId String   @map("leave_type_id") @db.Char(36)
+  periodYear  Int      @map("period_year")
+  quota       Decimal  @default(0.00) @db.Decimal(8, 2)
+  used        Decimal  @default(0.00) @db.Decimal(8, 2)
+  remaining   Decimal  @default(0.00) @db.Decimal(8, 2)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, periodYear], map: "uq_leave_balance")
+  @@map("leave_balances")
+}
+
+model Holiday {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String   @map("company_id") @db.Char(36)
+  holidayDate DateTime @map("holiday_date") @db.Date
+  name        String   @db.VarChar(150)
+  isNational  Boolean  @default(false) @map("is_national")
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, holidayDate], map: "uq_holiday_date")
+  @@map("holidays")
+}
+
+model Shift {
+  id                   String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId            String   @map("company_id") @db.Char(36)
+  code                 String   @db.VarChar(50)
+  name                 String   @db.VarChar(100)
+  startTime            String   @map("start_time") @db.VarChar(5)
+  endTime              String   @map("end_time") @db.VarChar(5)
+  lateToleranceMinutes Int      @default(15) @map("late_tolerance_minutes")
+  isDefault            Boolean  @default(false) @map("is_default")
+  createdAt            DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code], map: "uq_shift_code")
+  @@map("shifts")
+}
+
+model LeaveRequest {
+  id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId        String    @map("employee_id") @db.Char(36)
+  leaveTypeId       String    @map("leave_type_id") @db.Char(36)
+  startDate         DateTime  @map("start_date") @db.Date
+  endDate           DateTime  @map("end_date") @db.Date
+  startTime         DateTime? @map("start_time") @db.DateTime(0)
+  endTime           DateTime? @map("end_time") @db.DateTime(0)
+  durationDays      Decimal   @default(0.00) @map("duration_days") @db.Decimal(8, 2)
+  reason            String    @db.Text
+  status            String    @default("DRAFT") @db.VarChar(50)
+  attachmentFileId  String?   @map("attachment_file_id") @db.Char(36)
+  approvalRequestId String?   @map("approval_request_id") @db.Char(36)
+  submittedAt       DateTime? @map("submitted_at") @db.DateTime(0)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt         DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee        Employee         @relation(fields: [employeeId], references: [id])
+  leaveType       LeaveType        @relation(fields: [leaveTypeId], references: [id])
+  approvalRequest ApprovalRequest? @relation(fields: [approvalRequestId], references: [id])
+
+  @@index([employeeId, status], map: "idx_leave_employee_status")
+  @@index([approvalRequestId], map: "idx_leave_approval")
+  @@map("leave_requests")
+}
+
+model ApprovalRequest {
+  id            String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId     String    @map("company_id") @db.Char(36)
+  module        String    @db.VarChar(100)
+  referenceId   String    @map("reference_id") @db.Char(36)
+  requesterId   String?   @map("requester_id") @db.Char(36)
+  status        String    @default("SUBMITTED") @db.VarChar(50)
+  currentStepNo Int       @default(1) @map("current_step_no")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  completedAt   DateTime? @map("completed_at") @db.DateTime(0)
+
+  steps         ApprovalStep[]
+  tokens        ApprovalToken[]
+  leaveRequests LeaveRequest[]
+
+  @@index([module, referenceId], map: "idx_approval_reference")
+  @@map("approval_requests")
+}
+
+model ApprovalStep {
+  id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  approvalRequestId String    @map("approval_request_id") @db.Char(36)
+  stepNo            Int       @map("step_no")
+  approverType      String    @map("approver_type") @db.VarChar(50)
+  approverEmployeeId String?  @map("approver_employee_id") @db.Char(36)
+  approverRoleCode  String?   @map("approver_role_code") @db.VarChar(50)
+  status            String    @default("PENDING") @db.VarChar(50)
+  actionBy          String?   @map("action_by") @db.Char(36)
+  actionAt          DateTime? @map("action_at") @db.DateTime(0)
+  note              String?   @db.Text
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  approvalRequest ApprovalRequest @relation(fields: [approvalRequestId], references: [id])
+
+  @@unique([approvalRequestId, stepNo], map: "uq_approval_step")
+  @@map("approval_steps")
+}
+
+model ApprovalToken {
+  id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  approvalRequestId String    @map("approval_request_id") @db.Char(36)
+  stepId            String    @map("step_id") @db.Char(36)
+  tokenHash         String    @map("token_hash") @db.VarChar(255)
+  action            String    @db.VarChar(20)
+  expiresAt         DateTime  @map("expires_at") @db.DateTime(0)
+  usedAt            DateTime? @map("used_at") @db.DateTime(0)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  approvalRequest ApprovalRequest @relation(fields: [approvalRequestId], references: [id])
+
+  @@index([tokenHash], map: "idx_approval_token_hash")
+  @@map("approval_tokens")
+}
+
+model NotificationTemplate {
+  id        String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId String   @map("company_id") @db.Char(36)
+  code      String   @db.VarChar(100)
+  channel   String   @default("WHATSAPP") @db.VarChar(50)
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code, channel], map: "uq_notification_template")
+  @@map("notification_templates")
+}
+
+model NotificationQueue {
+  id             String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId      String?   @map("company_id") @db.Char(36)
+  channel        String    @default("WHATSAPP") @db.VarChar(50)
+  templateCode   String?   @map("template_code") @db.VarChar(100)
+  recipientPhone String?   @map("recipient_phone") @db.VarChar(30)
+  payload        Json
+  status         String    @default("QUEUED") @db.VarChar(50)
+  attempts       Int       @default(0)
+  lastError      String?   @map("last_error") @db.Text
+  scheduledAt    DateTime  @default(now()) @map("scheduled_at") @db.DateTime(0)
+  processedAt    DateTime? @map("processed_at") @db.DateTime(0)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  @@index([status, scheduledAt], map: "idx_notification_status")
+  @@map("notification_queue")
+}
+
+model WhatsAppMessageLog {
+  id            String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  instanceId    String?   @map("instance_id") @db.VarChar(100)
+  phone         String    @db.VarChar(30)
+  message       String    @db.Text
+  type          String    @default("text") @db.VarChar(30)
+  direction     String    @default("outgoing") @db.VarChar(20)
+  status        String    @default("queued") @db.VarChar(50)
+  providerRaw   Json?     @map("provider_raw")
+  errorMessage  String?   @map("error_message") @db.Text
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  sentAt        DateTime? @map("sent_at") @db.DateTime(0)
+
+  @@index([phone, createdAt], map: "idx_wa_phone_created")
+  @@map("whatsapp_message_logs")
+}
+
+model AttendanceImportBatch {
+  id           String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId    String    @map("company_id") @db.Char(36)
+  fileId       String?   @map("file_id") @db.Char(36)
+  status       String    @default("UPLOADED") @db.VarChar(50)
+  totalRows    Int       @default(0) @map("total_rows")
+  importedRows Int       @default(0) @map("imported_rows")
+  errorRows    Int       @default(0) @map("error_rows")
+  createdBy    String?   @map("created_by") @db.Char(36)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  processedAt  DateTime? @map("processed_at") @db.DateTime(0)
+
+  rawLogs AttendanceRawLog[]
+
+  @@map("attendance_import_batches")
+}
+
+model AttendanceRawLog {
+  id                String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  batchId           String?  @map("batch_id") @db.Char(36)
+  companyId         String   @map("company_id") @db.Char(36)
+  fingerprintUserId String   @map("fingerprint_user_id") @db.VarChar(100)
+  logTime           DateTime @map("log_time") @db.DateTime(0)
+  deviceCode        String?  @map("device_code") @db.VarChar(100)
+  rawPayload        Json?    @map("raw_payload")
+  createdAt         DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  batch AttendanceImportBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([fingerprintUserId, logTime], map: "idx_att_raw_user_time")
+  @@map("attendance_raw_logs")
+}
+
+model AttendanceDaily {
+  id                String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId        String    @map("employee_id") @db.Char(36)
+  attendanceDate    DateTime  @map("attendance_date") @db.Date
+  checkInAt         DateTime? @map("check_in_at") @db.DateTime(0)
+  checkOutAt        DateTime? @map("check_out_at") @db.DateTime(0)
+  lateMinutes       Int       @default(0) @map("late_minutes")
+  earlyLeaveMinutes Int       @default(0) @map("early_leave_minutes")
+  overtimeMinutes   Int       @default(0) @map("overtime_minutes")
+  status            String    @default("ABSENT") @db.VarChar(50)
+  source            String    @default("GENERATED") @db.VarChar(50)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt         DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  @@unique([employeeId, attendanceDate], map: "uq_attendance_daily")
+  @@map("attendance_daily")
+}
+
+model EvaluationForm {
+  id          String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String    @map("company_id") @db.Char(36)
+  title       String    @db.VarChar(200)
+  version     Int       @default(1)
+  status      String    @default("DRAFT") @db.VarChar(50)
+  isAnonymous Boolean   @default(false) @map("is_anonymous")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  company   Company             @relation(fields: [companyId], references: [id])
+  sections  EvaluationSection[]
+  cycles    EvaluationCycle[]
+
+  @@map("evaluation_forms")
+}
+
+model EvaluationSection {
+  id          String  @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  formId      String  @map("form_id") @db.Char(36)
+  title       String  @db.VarChar(200)
+  description String? @db.Text
+  sortOrder   Int     @default(1) @map("sort_order")
+  columns     Int     @default(2)
+
+  form      EvaluationForm       @relation(fields: [formId], references: [id])
+  questions EvaluationQuestion[]
+
+  @@map("evaluation_sections")
+}
+
+model EvaluationQuestion {
+  id          String  @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  sectionId   String  @map("section_id") @db.Char(36)
+  question    String  @db.Text
+  answerType  String  @map("answer_type") @db.VarChar(50)
+  weight      Decimal @default(1.00) @db.Decimal(8, 2)
+  optionsJson Json?   @map("options_json")
+  sortOrder   Int     @default(1) @map("sort_order")
+
+  section EvaluationSection @relation(fields: [sectionId], references: [id])
+
+  @@map("evaluation_questions")
+}
+
+model EvaluationCycle {
+  id        String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId String   @map("company_id") @db.Char(36)
+  formId    String   @map("form_id") @db.Char(36)
+  title     String   @db.VarChar(200)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  status    String   @default("DRAFT") @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company     Company                @relation(fields: [companyId], references: [id])
+  form        EvaluationForm          @relation(fields: [formId], references: [id])
+  assignments EvaluationAssignment[]
+
+  @@map("evaluation_cycles")
+}
+
+model EvaluationAssignment {
+  id          String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  cycleId     String    @map("cycle_id") @db.Char(36)
+  evaluatorId String    @map("evaluator_id") @db.Char(36)
+  targetId    String    @map("target_id") @db.Char(36)
+  reviewType  String    @map("review_type") @db.VarChar(50)
+  status      String    @default("ASSIGNED") @db.VarChar(50)
+  score       Decimal?  @db.Decimal(8, 2)
+  submittedAt DateTime? @map("submitted_at") @db.DateTime(0)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  cycle     EvaluationCycle @relation(fields: [cycleId], references: [id])
+  evaluator Employee        @relation("EvaluationEvaluator", fields: [evaluatorId], references: [id])
+  target    Employee        @relation("EvaluationTarget", fields: [targetId], references: [id])
+  responses EvaluationResponse[]
+
+  @@index([evaluatorId, status], map: "idx_eval_assignment_evaluator")
+  @@map("evaluation_assignments")
+}
+
+model EvaluationResponse {
+  id           String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  assignmentId String   @map("assignment_id") @db.Char(36)
+  questionId   String   @map("question_id") @db.Char(36)
+  answerJson   Json     @map("answer_json")
+  score        Decimal? @db.Decimal(8, 2)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  assignment EvaluationAssignment @relation(fields: [assignmentId], references: [id])
+
+  @@map("evaluation_responses")
+}
+
+model TestTemplate {
+  id           String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId    String   @map("company_id") @db.Char(36)
+  name         String   @db.VarChar(200)
+  testType     String   @map("test_type") @db.VarChar(50)
+  layoutConfig Json     @map("layout_config")
+  status       String   @default("DRAFT") @db.VarChar(50)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company   Company        @relation(fields: [companyId], references: [id])
+  questions TestQuestion[]
+  sessions  TestSession[]
+
+  @@map("test_templates")
+}
+
+model TestQuestion {
+  id         String  @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  templateId String  @map("template_id") @db.Char(36)
+  number     Int
+  answerType String  @map("answer_type") @db.VarChar(50)
+  answerKey  String? @map("answer_key") @db.VarChar(255)
+  weight     Decimal @default(1.00) @db.Decimal(8, 2)
+
+  template TestTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId, number], map: "uq_test_question_number")
+  @@map("test_questions")
+}
+
+model TestSession {
+  id         String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  templateId String   @map("template_id") @db.Char(36)
+  title      String   @db.VarChar(200)
+  status     String   @default("OPEN") @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  template     TestTemplate      @relation(fields: [templateId], references: [id])
+  participants TestParticipant[]
+
+  @@map("test_sessions")
+}
+
+model TestParticipant {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  sessionId   String   @map("session_id") @db.Char(36)
+  employeeId  String?  @map("employee_id") @db.Char(36)
+  candidateId String?  @map("candidate_id") @db.Char(36)
+  name        String   @db.VarChar(200)
+  status      String   @default("PENDING") @db.VarChar(50)
+  finalScore  Decimal? @map("final_score") @db.Decimal(8, 2)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  session TestSession @relation(fields: [sessionId], references: [id])
+  employee Employee?  @relation(fields: [employeeId], references: [id])
+
+  @@map("test_participants")
+}
+
+model PayrollPeriod {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String   @map("company_id") @db.Char(36)
+  periodMonth Int      @map("period_month")
+  periodYear  Int      @map("period_year")
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  status      String   @default("OPEN") @db.VarChar(50)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, periodMonth, periodYear], map: "uq_payroll_period")
+  @@map("payroll_periods")
+}
+
+model PayrollComponent {
+  id              String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId       String   @map("company_id") @db.Char(36)
+  code            String   @db.VarChar(50)
+  name            String   @db.VarChar(150)
+  componentType   String   @map("component_type") @db.VarChar(50)
+  calculationType String   @default("FIXED") @map("calculation_type") @db.VarChar(50)
+  formula         String?  @db.Text
+  isTaxable       Boolean  @default(false) @map("is_taxable")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code], map: "uq_payroll_component_code")
+  @@map("payroll_components")
+}
+
+model ReimbursementType {
+  id                 String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId          String   @map("company_id") @db.Char(36)
+  name               String   @db.VarChar(150)
+  maxAmount          Decimal? @map("max_amount") @db.Decimal(15, 2)
+  requiresAttachment Boolean  @default(true) @map("requires_attachment")
+  isActive           Boolean  @default(true) @map("is_active")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("reimbursement_types")
+}
+
+model JobOpening {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String   @map("company_id") @db.Char(36)
+  positionId  String?  @map("position_id") @db.Char(36)
+  title       String   @db.VarChar(200)
+  description String?  @db.Text
+  status      String   @default("OPEN") @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("job_openings")
+}
+
+model Training {
+  id          String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String    @map("company_id") @db.Char(36)
+  title       String    @db.VarChar(200)
+  description String?   @db.Text
+  trainerName String?   @map("trainer_name") @db.VarChar(150)
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  status      String    @default("PLANNED") @db.VarChar(50)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("trainings")
+}
+
+model Asset {
+  id           String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId    String    @map("company_id") @db.Char(36)
+  assetCode    String    @map("asset_code") @db.VarChar(100)
+  name         String    @db.VarChar(150)
+  category     String?   @db.VarChar(100)
+  serialNumber String?   @map("serial_number") @db.VarChar(150)
+  purchaseDate DateTime? @map("purchase_date") @db.Date
+  status       String    @default("AVAILABLE") @db.VarChar(50)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, assetCode], map: "uq_asset_code")
+  @@map("assets")
+}
+
+model Announcement {
+  id           String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId    String    @map("company_id") @db.Char(36)
+  title        String    @db.VarChar(200)
+  content      String    @db.Text
+  targetType   String    @default("ALL") @map("target_type") @db.VarChar(50)
+  targetConfig Json      @map("target_config")
+  publishedBy  String?   @map("published_by") @db.Char(36)
+  publishedAt  DateTime? @map("published_at") @db.DateTime(0)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("announcements")
+}
+
+model ActivityLog {
+  id          String   @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  companyId   String?  @map("company_id") @db.Char(36)
+  userId      String?  @map("user_id") @db.Char(36)
+  employeeId  String?  @map("employee_id") @db.Char(36)
+  module      String   @db.VarChar(100)
+  action      String   @db.VarChar(100)
+  referenceId String?  @map("reference_id") @db.Char(36)
+  oldData     Json?    @map("old_data")
+  newData     Json?    @map("new_data")
+  ipAddress   String?  @map("ip_address") @db.VarChar(100)
+  userAgent   String?  @map("user_agent") @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  company Company? @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, module], map: "idx_activity_company_module")
+  @@index([module, referenceId], map: "idx_activity_reference")
+  @@map("activity_logs")
+}
