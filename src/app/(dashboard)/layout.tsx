@@ -19,7 +19,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-3 border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl transition-all lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
             <MobileNavMenu permissions={session.permissions} roles={session.roles} />
-            <div className="flex min-w-0 flex-col justify-center">
+            <div className="hidden min-w-0 flex-col justify-center min-[430px]:flex">
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selamat bekerja</div>
               <div className="truncate text-base font-bold text-foreground">{session.name}</div>
             </div>

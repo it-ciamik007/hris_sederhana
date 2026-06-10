@@ -19,7 +19,7 @@ export function MobileNavMenu({ permissions, roles }: { permissions: string[]; r
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-accent"
+        className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 text-sm font-semibold text-foreground shadow-sm transition hover:bg-accent lg:hidden"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />
