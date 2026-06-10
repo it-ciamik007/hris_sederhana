@@ -157,8 +157,117 @@ async function handleModuleApprovalAfterAction(
   nextStepId?: string,
   note?: string
 ) {
-  if (!request || request.module !== "leave") return;
+  if (!request) return;
+  if (request.module === "leave") return handleLeaveApprovalOutcome(request, outcome, nextStepId, note);
+  if (request.module === "overtime") return handleOvertimeApprovalOutcome(request, outcome, nextStepId, note);
+  if (request.module === "reimbursement") return handleReimbursementApprovalOutcome(request, outcome, nextStepId, note);
+}
 
+async function notifyNextStepApprover(
+  request: ApprovalRequestWithSteps,
+  nextStepId: string | undefined,
+  notification: { title: string; body: string }
+) {
+  const nextStep = request.steps.find((step) => step.id === nextStepId);
+  if (!nextStep) return;
+  const payload = { ...notification, link: "/my/approvals" };
+  if (nextStep.approverEmployeeId) {
+    await notifyEmployee({ ...payload, employeeId: nextStep.approverEmployeeId });
+  } else if (nextStep.approverRoleCode) {
+    await notifyRole({ ...payload, roleCode: nextStep.approverRoleCode });
+  }
+}
+
+async function handleOvertimeApprovalOutcome(
+  request: ApprovalRequestWithSteps,
+  outcome: "next" | "approved" | "rejected",
+  nextStepId?: string,
+  note?: string
+) {
+  const overtime = await db.overtimeRequest.findUnique({
+    where: { id: request.referenceId },
+    include: { employee: true }
+  });
+  if (!overtime) return;
+
+  const dateLabel = overtime.overtimeDate.toISOString().slice(0, 10);
+
+  if (outcome === "approved") {
+    await db.overtimeRequest.update({ where: { id: overtime.id }, data: { status: "APPROVED" } });
+    await notifyEmployee({
+      employeeId: overtime.employeeId,
+      title: "Lembur disetujui",
+      body: `Lembur ${dateLabel} (${overtime.startTime}-${overtime.endTime}) disetujui.`,
+      link: "/my/overtime"
+    });
+    return;
+  }
+
+  if (outcome === "rejected") {
+    await db.overtimeRequest.update({ where: { id: overtime.id }, data: { status: "REJECTED" } });
+    await notifyEmployee({
+      employeeId: overtime.employeeId,
+      title: "Lembur ditolak",
+      body: `Lembur ${dateLabel} ditolak.${note ? ` Catatan: ${note}` : ""}`,
+      link: "/my/overtime"
+    });
+    return;
+  }
+
+  await notifyNextStepApprover(request, nextStepId, {
+    title: "Approval lembur menunggu Anda",
+    body: `Lembur ${overtime.employee.fullName} tanggal ${dateLabel} menunggu persetujuan Anda.`
+  });
+}
+
+async function handleReimbursementApprovalOutcome(
+  request: ApprovalRequestWithSteps,
+  outcome: "next" | "approved" | "rejected",
+  nextStepId?: string,
+  note?: string
+) {
+  const reimbursement = await db.reimbursementRequest.findUnique({
+    where: { id: request.referenceId },
+    include: { employee: true, reimbursementType: true }
+  });
+  if (!reimbursement) return;
+
+  const amountLabel = `Rp ${Number(reimbursement.amount).toLocaleString("id-ID")}`;
+
+  if (outcome === "approved") {
+    await db.reimbursementRequest.update({ where: { id: reimbursement.id }, data: { status: "APPROVED" } });
+    await notifyEmployee({
+      employeeId: reimbursement.employeeId,
+      title: "Reimbursement disetujui",
+      body: `${reimbursement.reimbursementType.name} sebesar ${amountLabel} disetujui dan menunggu pembayaran.`,
+      link: "/my/reimbursement"
+    });
+    return;
+  }
+
+  if (outcome === "rejected") {
+    await db.reimbursementRequest.update({ where: { id: reimbursement.id }, data: { status: "REJECTED" } });
+    await notifyEmployee({
+      employeeId: reimbursement.employeeId,
+      title: "Reimbursement ditolak",
+      body: `${reimbursement.reimbursementType.name} sebesar ${amountLabel} ditolak.${note ? ` Catatan: ${note}` : ""}`,
+      link: "/my/reimbursement"
+    });
+    return;
+  }
+
+  await notifyNextStepApprover(request, nextStepId, {
+    title: "Approval reimbursement menunggu Anda",
+    body: `${reimbursement.reimbursementType.name} ${reimbursement.employee.fullName} (${amountLabel}) menunggu persetujuan Anda.`
+  });
+}
+
+async function handleLeaveApprovalOutcome(
+  request: ApprovalRequestWithSteps,
+  outcome: "next" | "approved" | "rejected",
+  nextStepId?: string,
+  note?: string
+) {
   const leave = await db.leaveRequest.findUnique({
     where: { id: request.referenceId },
     include: { employee: true, leaveType: true }
