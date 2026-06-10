@@ -9,6 +9,7 @@ export const routePermissions = [
   { prefix: "/api/evaluations/forms", permission: "evaluation.form.create" },
   { prefix: "/api/tests/templates", permission: "test.template.create" },
   { prefix: "/api/tests/number-key", permission: "test.check" },
+  { prefix: "/api/settings/organization", permission: "setting.manage" },
   { prefix: "/api/settings", permission: "setting.manage" },
   { prefix: "/api/whatsapp/send-test", permission: "whatsapp.manage" },
   { prefix: "/api/tests/scan", permission: "test.check" },

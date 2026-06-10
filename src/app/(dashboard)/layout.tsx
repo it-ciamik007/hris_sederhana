@@ -13,13 +13,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen bg-transparent">
       {/* Sidebar with soft drop shadow */}
-      <Sidebar permissions={session.permissions} roles={session.roles} />
+      <Sidebar permissions={session.permissions} roles={session.roles} hasEmployee={Boolean(session.employeeId)} />
       
       <main className="min-w-0 flex-1 flex flex-col">
         {/* Glassmorphic Top Header */}
         <header className="sticky top-0 z-40 flex h-[72px] items-center justify-between gap-3 border-b border-border/40 bg-background/60 px-4 backdrop-blur-xl transition-all lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <MobileNavMenu permissions={session.permissions} roles={session.roles} />
+            <MobileNavMenu permissions={session.permissions} roles={session.roles} hasEmployee={Boolean(session.employeeId)} />
             <div className="hidden min-w-0 flex-col justify-center min-[430px]:flex">
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selamat bekerja</div>
               <div className="truncate text-base font-bold text-foreground">{session.name}</div>

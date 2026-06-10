@@ -2,16 +2,32 @@ import {
   BadgeCheck,
   Bell,
   BriefcaseBusiness,
+  Building2,
+  CalendarCheck,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   FileText,
   Gauge,
+  House,
   MessageCircle,
   ScanLine,
   Settings,
   ShieldCheck,
-  Users
+  UserRound,
+  Users,
+  Wallet
 } from "lucide-react";
+
+export const myNavigationItems = [
+  { href: "/my", label: "Dashboard Saya", icon: House },
+  { href: "/my/profile", label: "Profil Saya", icon: UserRound },
+  { href: "/my/leave", label: "Cuti Saya", icon: CalendarDays },
+  { href: "/my/attendance", label: "Absensi Saya", icon: CalendarCheck },
+  { href: "/my/approvals", label: "Approval Saya", icon: BadgeCheck },
+  { href: "/my/evaluations", label: "Penilaian Saya", icon: ClipboardList },
+  { href: "/my/payroll", label: "Payroll Saya", icon: Wallet }
+] as const;
 
 export const navigationItems = [
   { href: "/dashboard", label: "Dashboard", icon: Gauge, permission: "employee.view" },
@@ -24,6 +40,7 @@ export const navigationItems = [
   { href: "/settings/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp.manage" },
   { href: "/payroll/periods", label: "Payroll", icon: BriefcaseBusiness, permission: "payroll.view" },
   { href: "/announcements", label: "Announcements", icon: Bell, permission: "document.view" },
+  { href: "/settings/organization", label: "Organisasi", icon: Building2, permission: "setting.manage" },
   { href: "/settings/defaults", label: "Defaults", icon: Settings, permission: "setting.manage" },
   { href: "/settings/roles", label: "Access Control", icon: ShieldCheck, permission: "setting.manage" }
 ] as const;
