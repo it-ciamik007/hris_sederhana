@@ -73,7 +73,14 @@ export async function middleware(request: NextRequest) {
 
     if (!allowed) {
       if (isApi) return NextResponse.json({ message: "Forbidden" }, { status: 403 });
-      return NextResponse.redirect(new URL("/dashboard?forbidden=1", request.url));
+      return NextResponse.redirect(new URL("/my", request.url));
+    }
+
+    if ((pathname === "/" || pathname === "/dashboard") && !roles.includes("SUPER_ADMIN")) {
+      const canViewAdminDashboard = permissions.includes("employee.view") || permissions.includes("setting.manage");
+      if (!canViewAdminDashboard) {
+        return NextResponse.redirect(new URL("/my", request.url));
+      }
     }
   } catch {
     if (isApi) return NextResponse.json({ message: "Unauthenticated" }, { status: 401 });
