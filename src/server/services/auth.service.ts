@@ -9,6 +9,8 @@ export const loginSchema = z.object({
   password: z.string().min(1)
 });
 
+export const newPasswordSchema = z.string().min(6, "Password baru minimal 6 karakter.");
+
 export async function login(input: z.infer<typeof loginSchema>) {
   const parsed = loginSchema.safeParse(input);
   if (!parsed.success) throw new Error("Email dan password wajib diisi.");

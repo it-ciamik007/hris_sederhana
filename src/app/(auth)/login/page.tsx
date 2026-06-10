@@ -10,31 +10,32 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const email = params?.email ?? "admin@example.com";
+  const email = params?.email ?? "";
   const error = params?.error;
 
   return (
-    <main className="grid min-h-screen place-items-center bg-background px-4">
-      <form action="/api/auth/login" method="post" className="w-full max-w-sm rounded-md border bg-white p-6 shadow-sm">
-        <div className="mb-6">
-          <h1 className="text-xl font-semibold">HRIS Login</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Masuk untuk mengelola data HR.</p>
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+      <form action="/api/auth/login" method="post" className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-sm">
+        <div className="mb-6 space-y-1">
+          <p className="text-sm font-medium text-primary">HRIS Sederhana</p>
+          <h1 className="text-2xl font-semibold tracking-normal text-foreground">Masuk ke akun Anda</h1>
+          <p className="text-sm text-muted-foreground">Gunakan email atau username HRIS yang sudah terdaftar.</p>
         </div>
         {error ? (
           <div className="mb-4 rounded-md border border-destructive/25 bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}
           </div>
         ) : null}
-        <label className="mb-3 block text-sm">
+        <label className="mb-3 block text-sm font-medium text-foreground">
           Email
-          <Input className="mt-1" name="email" type="email" defaultValue={email} required />
+          <Input className="mt-1" name="email" type="text" defaultValue={email} placeholder="dian@hris.local" autoComplete="username" required />
         </label>
-        <label className="mb-5 block text-sm">
+        <label className="mb-5 block text-sm font-medium text-foreground">
           Password
-          <Input className="mt-1" name="password" type="password" defaultValue="Admin123!" required />
+          <Input className="mt-1" name="password" type="password" autoComplete="current-password" required />
         </label>
         <Button className="w-full" type="submit">
-          Login
+          Masuk
         </Button>
       </form>
     </main>

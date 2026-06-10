@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createSessionToken, getSessionCookieOptions, sessionCookieName } from "@/lib/auth";
 import { login } from "@/server/services/auth.service";
 
+export function GET(request: Request) {
+  return NextResponse.redirect(new URL("/login", request.url));
+}
+
 export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") ?? "");
