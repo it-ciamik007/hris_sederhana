@@ -1,6 +1,7 @@
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileNavMenu } from "@/components/layout/mobile-nav-menu";
+import { NotificationBell } from "@/components/layout/notification-bell";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -36,11 +37,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               />
             </div>
             
-            {/* Notification Button */}
-            <button className="relative grid h-10 w-10 place-items-center rounded-full border border-input bg-background/50 text-muted-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground" aria-label="Notifikasi">
-              <Bell className="h-[18px] w-[18px]" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-destructive border border-background"></span>
-            </button>
+            <NotificationBell />
             <ThemeToggle />
             
             {/* Logout Form/Button */}
