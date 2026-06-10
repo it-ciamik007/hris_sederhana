@@ -4,12 +4,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { getSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
-type LeaveDetail = {
-  employeeName: string;
-  leaveType: string;
-  range: string;
-  duration: string;
-  reason: string;
+type RequestDetail = {
+  headline: string;
+  info: string;
+  reason?: string;
+  attachmentFileId?: string | null;
 };
 
 export default async function MyApprovalsPage({ searchParams }: { searchParams: Promise<{ done?: string }> }) {
@@ -48,27 +47,52 @@ export default async function MyApprovalsPage({ searchParams }: { searchParams: 
       !["REJECTED", "APPROVED"].includes(step.approvalRequest.status)
   );
 
-  const leaveIds = [...pendingSteps, ...historySteps]
-    .filter((step) => step.approvalRequest.module === "leave")
-    .map((step) => step.approvalRequest.referenceId);
-  const leaves = leaveIds.length
-    ? await db.leaveRequest.findMany({
-        where: { id: { in: leaveIds } },
-        include: { employee: true, leaveType: true }
-      })
-    : [];
-  const leaveById = new Map<string, LeaveDetail>(
-    leaves.map((leave) => [
-      leave.id,
-      {
-        employeeName: leave.employee.fullName,
-        leaveType: leave.leaveType.name,
-        range: `${leave.startDate.toISOString().slice(0, 10)} s/d ${leave.endDate.toISOString().slice(0, 10)}`,
-        duration: `${leave.durationDays.toString()} hari`,
-        reason: leave.reason
-      }
-    ])
-  );
+  const allSteps = [...pendingSteps, ...historySteps];
+  const idsByModule = (module: string) =>
+    allSteps.filter((step) => step.approvalRequest.module === module).map((step) => step.approvalRequest.referenceId);
+
+  const leaveIds = idsByModule("leave");
+  const overtimeIds = idsByModule("overtime");
+  const reimbursementIds = idsByModule("reimbursement");
+
+  const [leaves, overtimes, reimbursements] = await Promise.all([
+    leaveIds.length
+      ? db.leaveRequest.findMany({ where: { id: { in: leaveIds } }, include: { employee: true, leaveType: true } })
+      : Promise.resolve([]),
+    overtimeIds.length
+      ? db.overtimeRequest.findMany({ where: { id: { in: overtimeIds } }, include: { employee: true } })
+      : Promise.resolve([]),
+    reimbursementIds.length
+      ? db.reimbursementRequest.findMany({
+          where: { id: { in: reimbursementIds } },
+          include: { employee: true, reimbursementType: true }
+        })
+      : Promise.resolve([])
+  ]);
+
+  const detailByReference = new Map<string, RequestDetail>();
+  leaves.forEach((leave) => {
+    detailByReference.set(leave.id, {
+      headline: `${leave.employee.fullName} - ${leave.leaveType.name}`,
+      info: `${leave.startDate.toISOString().slice(0, 10)} s/d ${leave.endDate.toISOString().slice(0, 10)} (${leave.durationDays.toString()} hari)`,
+      reason: leave.reason
+    });
+  });
+  overtimes.forEach((overtime) => {
+    detailByReference.set(overtime.id, {
+      headline: `${overtime.employee.fullName} - Lembur`,
+      info: `${overtime.overtimeDate.toISOString().slice(0, 10)}, ${overtime.startTime}-${overtime.endTime} (${Math.round((overtime.durationMinutes / 60) * 10) / 10} jam)`,
+      reason: overtime.reason
+    });
+  });
+  reimbursements.forEach((reimbursement) => {
+    detailByReference.set(reimbursement.id, {
+      headline: `${reimbursement.employee.fullName} - ${reimbursement.reimbursementType.name}`,
+      info: `${reimbursement.expenseDate.toISOString().slice(0, 10)} - Rp ${Number(reimbursement.amount).toLocaleString("id-ID")}`,
+      reason: reimbursement.description,
+      attachmentFileId: reimbursement.attachmentFileId
+    });
+  });
 
   return (
     <div className="space-y-5">
@@ -92,7 +116,7 @@ export default async function MyApprovalsPage({ searchParams }: { searchParams: 
         </div>
         <div className="divide-y divide-border">
           {pendingSteps.map((step) => {
-            const detail = step.approvalRequest.module === "leave" ? leaveById.get(step.approvalRequest.referenceId) : undefined;
+            const detail = detailByReference.get(step.approvalRequest.referenceId);
             return (
               <div key={step.id} className="p-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -103,9 +127,21 @@ export default async function MyApprovalsPage({ searchParams }: { searchParams: 
                 </div>
                 {detail ? (
                   <div className="mt-2">
-                    <div className="font-medium">{detail.employeeName} - {detail.leaveType}</div>
-                    <div className="text-sm text-muted-foreground">{detail.range} ({detail.duration})</div>
-                    <div className="mt-1 text-sm"><span className="text-muted-foreground">Alasan:</span> {detail.reason}</div>
+                    <div className="font-medium">{detail.headline}</div>
+                    <div className="text-sm text-muted-foreground">{detail.info}</div>
+                    {detail.reason && (
+                      <div className="mt-1 text-sm"><span className="text-muted-foreground">Keterangan:</span> {detail.reason}</div>
+                    )}
+                    {detail.attachmentFileId && (
+                      <a
+                        href={`/api/files/${detail.attachmentFileId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-sm font-medium text-primary hover:underline"
+                      >
+                        Lihat bukti
+                      </a>
+                    )}
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-muted-foreground">Referensi: {step.approvalRequest.referenceId}</div>
@@ -149,15 +185,15 @@ export default async function MyApprovalsPage({ searchParams }: { searchParams: 
         <div className="border-b border-border p-4 font-semibold">Riwayat Tindakan Saya</div>
         <div className="divide-y divide-border">
           {historySteps.map((step) => {
-            const detail = step.approvalRequest.module === "leave" ? leaveById.get(step.approvalRequest.referenceId) : undefined;
+            const detail = detailByReference.get(step.approvalRequest.referenceId);
             return (
               <div key={step.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="font-medium">
-                    {detail ? `${detail.employeeName} - ${detail.leaveType}` : `${step.approvalRequest.module} (${step.approvalRequest.referenceId.slice(0, 8)})`}
+                    {detail ? detail.headline : `${step.approvalRequest.module} (${step.approvalRequest.referenceId.slice(0, 8)})`}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {detail?.range ?? ""} {step.actionAt ? `- ${step.actionAt.toISOString().slice(0, 16).replace("T", " ")}` : ""}
+                    {detail?.info ?? ""} {step.actionAt ? `- ${step.actionAt.toISOString().slice(0, 16).replace("T", " ")}` : ""}
                     {step.note ? ` - Catatan: ${step.note}` : ""}
                   </div>
                 </div>
