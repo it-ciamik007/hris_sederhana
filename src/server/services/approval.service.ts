@@ -4,6 +4,7 @@ import { addHours } from "date-fns";
 import { db } from "@/lib/db";
 import { audit } from "@/server/services/audit.service";
 import { applyApprovedLeaveBalance } from "@/server/services/leave-balance.service";
+import { notifyEmployee, notifyRole } from "@/server/services/notification-inapp.service";
 import { queueNotification } from "@/server/services/notification.service";
 
 type ApprovalStepInput = {
@@ -179,6 +180,12 @@ async function handleModuleApprovalAfterAction(
       recipientPhone: leave.employee.whatsappNumber,
       payload: leavePayload(leave)
     });
+    await notifyEmployee({
+      employeeId: leave.employeeId,
+      title: "Cuti disetujui",
+      body: `Pengajuan ${leave.leaveType.name} ${leave.startDate.toISOString().slice(0, 10)} s/d ${leave.endDate.toISOString().slice(0, 10)} disetujui.`,
+      link: "/my/leave"
+    });
     return;
   }
 
@@ -189,6 +196,12 @@ async function handleModuleApprovalAfterAction(
       templateCode: "LEAVE_REJECTED",
       recipientPhone: leave.employee.whatsappNumber,
       payload: { ...leavePayload(leave), note: note ?? "-" }
+    });
+    await notifyEmployee({
+      employeeId: leave.employeeId,
+      title: "Cuti ditolak",
+      body: `Pengajuan ${leave.leaveType.name} ${leave.startDate.toISOString().slice(0, 10)} s/d ${leave.endDate.toISOString().slice(0, 10)} ditolak.${note ? ` Catatan: ${note}` : ""}`,
+      link: "/my/leave"
     });
     return;
   }
@@ -220,6 +233,19 @@ async function handleModuleApprovalAfterAction(
       reject_url: `${process.env.APP_URL ?? "http://localhost:3000"}/api/approval/action?token=${rejectToken}`
     }
   });
+
+  const nextNotification = {
+    title: "Approval cuti menunggu Anda",
+    body: `Pengajuan ${leave.leaveType.name} dari ${leave.employee.fullName} menunggu persetujuan Anda.`,
+    link: "/my/approvals"
+  };
+  if (nextStep.approverEmployeeId) {
+    await notifyEmployee({ ...nextNotification, employeeId: nextStep.approverEmployeeId });
+  } else if (nextStep.approverRoleCode) {
+    await notifyRole({ ...nextNotification, roleCode: nextStep.approverRoleCode });
+  } else if (approver?.id) {
+    await notifyEmployee({ ...nextNotification, employeeId: approver.id });
+  }
 }
 
 function leavePayload(leave: {

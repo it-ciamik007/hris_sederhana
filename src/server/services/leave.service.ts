@@ -3,6 +3,7 @@ import { eachDateBetween, isWeekend, parseDateOnly } from "@/lib/validators/date
 import { db } from "@/lib/db";
 import { createApprovalRequest, generateApprovalToken } from "@/server/services/approval.service";
 import { assertLeaveBalanceAvailable } from "@/server/services/leave-balance.service";
+import { notifyEmployee, notifyRole } from "@/server/services/notification-inapp.service";
 import { queueNotification } from "@/server/services/notification.service";
 
 export const leaveRequestSchema = z.object({
@@ -131,6 +132,17 @@ export async function submitLeaveRequest(leaveRequestId: string) {
       reject_url: `${process.env.APP_URL ?? "http://localhost:3000"}/api/approval/action?token=${rejectToken}`
     }
   });
+
+  const notification = {
+    title: "Pengajuan cuti baru",
+    body: `${leave.employee.fullName} mengajukan ${leave.leaveType.name} ${leave.startDate.toISOString().slice(0, 10)} s/d ${leave.endDate.toISOString().slice(0, 10)} (${leave.durationDays.toString()} hari).`,
+    link: "/my/approvals"
+  };
+  if (approver?.id) {
+    await notifyEmployee({ ...notification, employeeId: approver.id });
+  } else if (firstStep?.approverRoleCode) {
+    await notifyRole({ ...notification, roleCode: firstStep.approverRoleCode });
+  }
 
   return approval;
 }
