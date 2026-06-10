@@ -5,12 +5,15 @@ import { db } from "@/lib/db";
 import { audit } from "@/server/services/audit.service";
 
 export const loginSchema = z.object({
-  email: z.string().min(1),
+  email: z.string().trim().min(1),
   password: z.string().min(1)
 });
 
 export async function login(input: z.infer<typeof loginSchema>) {
-  const data = loginSchema.parse(input);
+  const parsed = loginSchema.safeParse(input);
+  if (!parsed.success) throw new Error("Email dan password wajib diisi.");
+
+  const data = parsed.data;
   const identifier = data.email.trim().toLowerCase();
   const email = identifier.includes("@") ? identifier : `${identifier}@hris.local`;
   const user = await db.user.findUnique({ where: { email } });

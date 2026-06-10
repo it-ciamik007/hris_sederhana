@@ -4,18 +4,19 @@ import { login } from "@/server/services/auth.service";
 
 export async function POST(request: Request) {
   const form = await request.formData();
+  const email = String(form.get("email") ?? "");
   try {
     const session = await login({
-      email: String(form.get("email") ?? ""),
+      email,
       password: String(form.get("password") ?? "")
     });
     const response = NextResponse.redirect(new URL("/dashboard", request.url));
     response.cookies.set(sessionCookieName, await createSessionToken(session), getSessionCookieOptions());
     return response;
   } catch (error) {
-    return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Login failed" },
-      { status: 401 }
-    );
+    const url = new URL("/login", request.url);
+    url.searchParams.set("email", email);
+    url.searchParams.set("error", error instanceof Error ? error.message : "Login failed");
+    return NextResponse.redirect(url, { status: 303 });
   }
 }
