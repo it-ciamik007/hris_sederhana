@@ -11,7 +11,8 @@ const tabs = [
   { key: "positions", label: "Posisi" },
   { key: "branches", label: "Cabang" },
   { key: "shifts", label: "Shift" },
-  { key: "holidays", label: "Hari Libur" }
+  { key: "holidays", label: "Hari Libur" },
+  { key: "reimbursement-types", label: "Tipe Reimbursement" }
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -20,12 +21,13 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
   const params = await searchParams;
   const tab: TabKey = (tabs.find((item) => item.key === params.tab)?.key ?? "departments") as TabKey;
 
-  const [departments, positions, branches, shifts, holidays] = await Promise.all([
+  const [departments, positions, branches, shifts, holidays, reimbursementTypes] = await Promise.all([
     db.department.findMany({ include: { parent: true, _count: { select: { employees: true } } }, orderBy: { name: "asc" } }),
     db.position.findMany({ include: { _count: { select: { employees: true } } }, orderBy: [{ levelOrder: "asc" }, { name: "asc" }] }),
     db.branch.findMany({ include: { _count: { select: { employees: true } } }, orderBy: { name: "asc" } }),
     db.shift.findMany({ orderBy: { code: "asc" } }),
-    db.holiday.findMany({ orderBy: { holidayDate: "asc" } })
+    db.holiday.findMany({ orderBy: { holidayDate: "asc" } }),
+    db.reimbursementType.findMany({ include: { _count: { select: { requests: true } } }, orderBy: { name: "asc" } })
   ]);
 
   const departmentFields = (excludeId?: string): FieldConfig[] => [
@@ -64,13 +66,19 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
     { name: "name", label: "Nama Hari Libur", type: "text", required: true },
     { name: "isNational", label: "Libur Nasional", type: "checkbox" }
   ];
+  const reimbursementTypeFields: FieldConfig[] = [
+    { name: "name", label: "Nama Tipe", type: "text", required: true },
+    { name: "maxAmount", label: "Batas Nominal (kosongkan = tanpa batas)", type: "number", step: "0.01" },
+    { name: "requiresAttachment", label: "Wajib lampiran bukti", type: "checkbox" }
+  ];
 
   const addConfig: Record<TabKey, { title: string; fields: FieldConfig[] }> = {
     departments: { title: "Tambah Departemen", fields: departmentFields() },
     positions: { title: "Tambah Posisi", fields: positionFields },
     branches: { title: "Tambah Cabang", fields: branchFields },
     shifts: { title: "Tambah Shift", fields: shiftFields },
-    holidays: { title: "Tambah Hari Libur", fields: holidayFields }
+    holidays: { title: "Tambah Hari Libur", fields: holidayFields },
+    "reimbursement-types": { title: "Tambah Tipe Reimbursement", fields: reimbursementTypeFields }
   };
 
   return (
@@ -249,6 +257,35 @@ export default async function OrganizationPage({ searchParams }: { searchParams:
                 />
               ),
               remove: { entity: "holidays" }
+            }))}
+          />
+        )}
+
+        {tab === "reimbursement-types" && (
+          <Rows
+            empty="Belum ada tipe reimbursement."
+            items={reimbursementTypes.map((item) => ({
+              id: item.id,
+              title: item.name,
+              subtitle: `${item.maxAmount ? `Maks Rp ${Number(item.maxAmount).toLocaleString("id-ID")}` : "Tanpa batas"}${item.requiresAttachment ? " - wajib bukti" : ""}`,
+              meta: `${item._count.requests} pengajuan`,
+              isActive: item.isActive,
+              dialog: (
+                <EntityDialog
+                  entity="reimbursement-types"
+                  id={item.id}
+                  title="Edit Tipe Reimbursement"
+                  triggerLabel="Edit"
+                  triggerClassName="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                  fields={reimbursementTypeFields}
+                  initialValues={{
+                    name: item.name,
+                    maxAmount: item.maxAmount?.toString() ?? "",
+                    requiresAttachment: item.requiresAttachment
+                  }}
+                />
+              ),
+              toggle: { entity: "reimbursement-types", isActive: item.isActive }
             }))}
           />
         )}

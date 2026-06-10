@@ -2,7 +2,14 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { audit } from "@/server/services/audit.service";
 
-export const organizationEntities = ["departments", "positions", "branches", "shifts", "holidays"] as const;
+export const organizationEntities = [
+  "departments",
+  "positions",
+  "branches",
+  "shifts",
+  "holidays",
+  "reimbursement-types"
+] as const;
 export type OrganizationEntity = (typeof organizationEntities)[number];
 
 const optionalText = z
@@ -46,6 +53,11 @@ const schemas = {
     holidayDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal libur wajib diisi."),
     name: z.string().trim().min(1, "Nama hari libur wajib diisi."),
     isNational: checkbox
+  }),
+  "reimbursement-types": z.object({
+    name: z.string().trim().min(1, "Nama tipe reimbursement wajib diisi."),
+    maxAmount: z.coerce.number().positive().optional().or(z.literal("").transform(() => undefined)),
+    requiresAttachment: checkbox
   })
 } satisfies Record<OrganizationEntity, z.ZodTypeAny>;
 
@@ -82,10 +94,15 @@ export async function createOrganizationEntity(entity: OrganizationEntity, input
       await db.shift.updateMany({ where: { companyId }, data: { isDefault: false } });
     }
     created = await db.shift.create({ data: { companyId, ...parsed } });
-  } else {
+  } else if (entity === "holidays") {
     const parsed = data as z.infer<(typeof schemas)["holidays"]>;
     created = await db.holiday.create({
       data: { companyId, holidayDate: new Date(`${parsed.holidayDate}T00:00:00.000Z`), name: parsed.name, isNational: parsed.isNational }
+    });
+  } else {
+    const parsed = data as z.infer<(typeof schemas)["reimbursement-types"]>;
+    created = await db.reimbursementType.create({
+      data: { companyId, name: parsed.name, maxAmount: parsed.maxAmount ?? null, requiresAttachment: parsed.requiresAttachment }
     });
   }
 
@@ -115,11 +132,17 @@ export async function updateOrganizationEntity(entity: OrganizationEntity, id: s
       await db.shift.updateMany({ where: { companyId, id: { not: id } }, data: { isDefault: false } });
     }
     await db.shift.update({ where: { id }, data: parsed });
-  } else {
+  } else if (entity === "holidays") {
     const parsed = data as z.infer<(typeof schemas)["holidays"]>;
     await db.holiday.update({
       where: { id },
       data: { holidayDate: new Date(`${parsed.holidayDate}T00:00:00.000Z`), name: parsed.name, isNational: parsed.isNational }
+    });
+  } else {
+    const parsed = data as z.infer<(typeof schemas)["reimbursement-types"]>;
+    await db.reimbursementType.update({
+      where: { id },
+      data: { name: parsed.name, maxAmount: parsed.maxAmount ?? null, requiresAttachment: parsed.requiresAttachment }
     });
   }
 
@@ -135,6 +158,8 @@ export async function toggleOrganizationEntity(entity: OrganizationEntity, id: s
     await db.position.update({ where: { id }, data: { isActive } });
   } else if (entity === "branches") {
     await db.branch.update({ where: { id }, data: { isActive } });
+  } else if (entity === "reimbursement-types") {
+    await db.reimbursementType.update({ where: { id }, data: { isActive } });
   } else {
     throw new Error("Entitas ini tidak mendukung aktif/nonaktif.");
   }
