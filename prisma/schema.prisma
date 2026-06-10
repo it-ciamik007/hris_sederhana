@@ -75,10 +75,21 @@ model File {
   uploadedBy      String?  @map("uploaded_by") @db.Char(36)
   uploadedAt      DateTime @default(now()) @map("uploaded_at") @db.DateTime(0)
 
-  company Company? @relation(fields: [companyId], references: [id])
+  company               Company?               @relation(fields: [companyId], references: [id])
+  content               FileContent?
+  reimbursementRequests ReimbursementRequest[]
 
   @@index([companyId], map: "idx_files_company")
   @@map("files")
+}
+
+model FileContent {
+  fileId String @id @map("file_id") @db.Char(36)
+  data   Bytes
+
+  file File @relation(fields: [fileId], references: [id])
+
+  @@map("file_contents")
 }
 
 model Branch {
@@ -182,6 +193,10 @@ model Employee {
   evaluationAssignments EvaluationAssignment[] @relation("EvaluationTarget")
   evaluatorAssignments EvaluationAssignment[] @relation("EvaluationEvaluator")
   testParticipants TestParticipant[]
+  overtimeRequests OvertimeRequest[] @relation("OvertimeEmployee")
+  overtimeApprovals OvertimeRequest[] @relation("OvertimeApprover")
+  reimbursementRequests ReimbursementRequest[] @relation("ReimbursementEmployee")
+  reimbursementApprovals ReimbursementRequest[] @relation("ReimbursementApprover")
 
   @@unique([companyId, employeeNumber], map: "uq_employee_number")
   @@unique([companyId, nik], map: "uq_employee_nik")
@@ -215,9 +230,10 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt    DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
 
-  employee      Employee?      @relation(fields: [employeeId], references: [id])
-  roles         UserRole[]
-  notifications Notification[]
+  employee           Employee?              @relation(fields: [employeeId], references: [id])
+  roles              UserRole[]
+  notifications      Notification[]
+  reimbursementsPaid ReimbursementRequest[] @relation("ReimbursementPaidBy")
 
   @@map("users")
 }
@@ -413,9 +429,11 @@ model ApprovalRequest {
   createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
   completedAt   DateTime? @map("completed_at") @db.DateTime(0)
 
-  steps         ApprovalStep[]
-  tokens        ApprovalToken[]
-  leaveRequests LeaveRequest[]
+  steps                 ApprovalStep[]
+  tokens                ApprovalToken[]
+  leaveRequests         LeaveRequest[]
+  overtimeRequests      OvertimeRequest[]
+  reimbursementRequests ReimbursementRequest[]
 
   @@index([module, referenceId], map: "idx_approval_reference")
   @@map("approval_requests")
@@ -752,9 +770,61 @@ model ReimbursementType {
   requiresAttachment Boolean  @default(true) @map("requires_attachment")
   isActive           Boolean  @default(true) @map("is_active")
 
-  company Company @relation(fields: [companyId], references: [id])
+  company  Company                @relation(fields: [companyId], references: [id])
+  requests ReimbursementRequest[]
 
   @@map("reimbursement_types")
+}
+
+model OvertimeRequest {
+  id                 String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId         String    @map("employee_id") @db.Char(36)
+  selectedApproverId String?   @map("selected_approver_id") @db.Char(36)
+  overtimeDate       DateTime  @map("overtime_date") @db.Date
+  startTime          String    @map("start_time") @db.VarChar(5)
+  endTime            String    @map("end_time") @db.VarChar(5)
+  durationMinutes    Int       @map("duration_minutes")
+  reason             String    @db.Text
+  status             String    @default("DRAFT") @db.VarChar(50)
+  approvalRequestId  String?   @map("approval_request_id") @db.Char(36)
+  submittedAt        DateTime? @map("submitted_at") @db.DateTime(0)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt          DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee         Employee         @relation("OvertimeEmployee", fields: [employeeId], references: [id])
+  selectedApprover Employee?        @relation("OvertimeApprover", fields: [selectedApproverId], references: [id])
+  approvalRequest  ApprovalRequest? @relation(fields: [approvalRequestId], references: [id])
+
+  @@index([employeeId, status], map: "idx_overtime_employee_status")
+  @@map("overtime_requests")
+}
+
+model ReimbursementRequest {
+  id                  String    @id @default(dbgenerated("(UUID())")) @db.Char(36)
+  employeeId          String    @map("employee_id") @db.Char(36)
+  reimbursementTypeId String    @map("reimbursement_type_id") @db.Char(36)
+  selectedApproverId  String?   @map("selected_approver_id") @db.Char(36)
+  expenseDate         DateTime  @map("expense_date") @db.Date
+  amount              Decimal   @db.Decimal(15, 2)
+  description         String    @db.Text
+  attachmentFileId    String?   @map("attachment_file_id") @db.Char(36)
+  status              String    @default("DRAFT") @db.VarChar(50)
+  paidAt              DateTime? @map("paid_at") @db.DateTime(0)
+  paidBy              String?   @map("paid_by") @db.Char(36)
+  approvalRequestId   String?   @map("approval_request_id") @db.Char(36)
+  submittedAt         DateTime? @map("submitted_at") @db.DateTime(0)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt           DateTime? @updatedAt @map("updated_at") @db.DateTime(0)
+
+  employee          Employee          @relation("ReimbursementEmployee", fields: [employeeId], references: [id])
+  selectedApprover  Employee?         @relation("ReimbursementApprover", fields: [selectedApproverId], references: [id])
+  reimbursementType ReimbursementType @relation(fields: [reimbursementTypeId], references: [id])
+  attachment        File?             @relation(fields: [attachmentFileId], references: [id])
+  approvalRequest   ApprovalRequest?  @relation(fields: [approvalRequestId], references: [id])
+  paidByUser        User?             @relation("ReimbursementPaidBy", fields: [paidBy], references: [id])
+
+  @@index([employeeId, status], map: "idx_reimb_employee_status")
+  @@map("reimbursement_requests")
 }
 
 model JobOpening {
